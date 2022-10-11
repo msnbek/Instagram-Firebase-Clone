@@ -15,7 +15,12 @@ class ViewController: UIViewController {
     @IBOutlet weak var emailText: UITextField!
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view.
+        let gesture = UITapGestureRecognizer(target: self, action: #selector(hiddenKeyboard))
+        view?.addGestureRecognizer(gesture)
+    }
+    @objc func hiddenKeyboard() {
+        
+        view.endEditing(true)
     }
     @IBAction func signInClicked(_ sender: Any) {
         

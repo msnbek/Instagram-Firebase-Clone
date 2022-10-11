@@ -19,6 +19,9 @@ class UploadViewController: UIViewController, UIImagePickerControllerDelegate,UI
         imageView.isUserInteractionEnabled = true
         let imageGesture = UITapGestureRecognizer(target: self, action: #selector(imageTapped))
         imageView.addGestureRecognizer(imageGesture)
+        
+        let gesture = UITapGestureRecognizer(target: self, action: #selector(hiddenKeyboard))
+        view?.addGestureRecognizer(gesture)
     }
     @objc func imageTapped() {
         
@@ -28,42 +31,80 @@ class UploadViewController: UIViewController, UIImagePickerControllerDelegate,UI
         picker.allowsEditing = true
         present(picker, animated: true)
     }
+    
+    @objc func hiddenKeyboard() {
+        
+        view.endEditing(true)
+    }
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
         imageView.image = info[.originalImage] as? UIImage
         self.dismiss(animated: true, completion: nil)
     }
     
     @IBAction func uploadButtonClicked(_ sender: Any) {
-        
-        
-        
-        let storage = Storage.storage()
-        let storageReference = storage.reference()
-        
-        let mediaFolder = storageReference.child("media")
-        
-        if let data = imageView.image?.jpegData(compressionQuality: 0.5) {
+        if  self.imageView.image == UIImage(named: "x") && self.commentText.text! == "" {
+            self.makeAlert(tittleInput: "Error", messageInput: "Please choose photo!")
+        }else {
             
-            let uuid = UUID().uuidString
+            let storage = Storage.storage()
+            let storageReference = storage.reference()
             
-            let imageReference = mediaFolder.child(uuid)
-            imageReference.putData(data, metadata: nil) { storageMetaData, error in
-                if error != nil {
-                    print(error?.localizedDescription)
-                } else {
-                    imageReference.downloadURL { url, error in
-                        if error == nil {
-                            let imageURL = url?.absoluteString
-                            print(imageURL)
+            let mediaFolder = storageReference.child("media")
+            
+            if let data = imageView.image?.jpegData(compressionQuality: 0.5) {
+                
+                let uuid = UUID().uuidString
+                
+                let imageReference = mediaFolder.child("\(uuid).jpg")
+                imageReference.putData(data, metadata: nil) { storageMetaData, error in
+                    if error != nil {
+                        self.makeAlert(tittleInput: "Error", messageInput: error?.localizedDescription ?? "Error")
+                    } else {
+                        imageReference.downloadURL { url, error in
+                            if error == nil {
+                                let imageURL = url?.absoluteString
+                            
+                                let fireStoreDatabase = Firestore.firestore()
+                                
+                                var fireStoreReference : DocumentReference? = nil
+                                
+                                let fireStorePost = ["imageUrl" : imageURL!, "postedBy": Auth.auth().currentUser?.email! , "postComment": self.commentText.text!,"date": FieldValue.serverTimestamp(), "like": 0] as [String: Any]
+                               
+                                fireStoreReference = fireStoreDatabase.collection("Posts").addDocument(data: fireStorePost, completion: { error in
+                                    if error != nil {
+                                        self.makeAlert(tittleInput: "Error", messageInput: error?.localizedDescription ?? "Error")
+                                       
+                                    } else {
+                                        
+                                        self.imageView.image = UIImage(named: "x")
+                                        self.commentText.text = ""
+                                        self.tabBarController?.selectedIndex = 0
+                                    }
+                                    
+                                })
+                                
+                                
+                            }
                         }
                     }
                 }
+                
             }
             
+            
         }
+        
+        
+       
             
     }
     
- 
+    func makeAlert(tittleInput:String, messageInput:String) {
+        let alert = UIAlertController(title: tittleInput, message: messageInput, preferredStyle: UIAlertController.Style.alert)
+        let okButton = UIAlertAction(title: "Ok!", style: UIAlertAction.Style.default)
+        alert.addAction(okButton)
+        self.present(alert, animated: true)
 
+}
+    
 }
